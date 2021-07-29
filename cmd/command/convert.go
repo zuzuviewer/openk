@@ -19,12 +19,15 @@ var (
 	sourceFile string
 	// output,default is empty,output to stdout
 	dest string
+	// is output prettified json data,if it's true,only execute prettified data
+	indent bool
 )
 
 func init() {
 	convertCmd.Flags().StringVarP(&sourceFile, "file", "f", "", "source file (required)")
 	convertCmd.MarkFlagRequired("file")
 	convertCmd.Flags().StringVarP(&dest, "write", "w", "", "dest to output")
+	convertCmd.Flags().BoolVarP(&indent, "indent", "i", false, "output prettified json")
 }
 
 var convertCmd = &cobra.Command{
@@ -33,8 +36,9 @@ var convertCmd = &cobra.Command{
 	Long: "Convert distinguish file type by file name extension\n" +
 		"'*.json' file will be treat as json file and convert to yaml data,'*.yml' and '*.yaml' will be treat as yaml file and convert to json data\n" +
 		"if file name doesn't have these extension name,Convert will try convert json to yaml first,if error occurred,then try convert yaml to json\n" +
-		"the result output to stdout default,otherwise output to the dest if execute with -w",
-	Example: "openk convert -f test.json\nopenk convert -f test.yml -w test.json",
+		"the result output to stdout default,otherwise output to the dest if execute with -w.\n" +
+		"prettified json output with -i or --indent,and now only accept json data and won't convert data to yaml\n",
+	Example: "openk convert -f test.json\nopenk convert -f test.yml -w test.json\nopenk convert -i -f json.txt\nopenk convert -i -f json.txt -w t.json\n",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return convert()
 	},
@@ -44,6 +48,14 @@ func convert() error {
 	data, err := ioutil.ReadFile(sourceFile)
 	if err != nil {
 		return err
+	}
+	// only do prettified json data
+	if indent {
+		data, err = indentJson(data)
+		if err != nil {
+			return err
+		}
+		return output(data)
 	}
 	if strings.HasSuffix(sourceFile, ".json") {
 		if data, err = yaml.JSONToYAML(data); err != nil {
