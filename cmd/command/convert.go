@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -23,6 +24,8 @@ var (
 	indent bool
 	// is output string format json data,if it's true,only output string format json data and only accept json format data
 	outStr bool
+	// output string format json data with quote
+	quote bool
 )
 
 func init() {
@@ -31,6 +34,7 @@ func init() {
 	convertCmd.Flags().StringVarP(&dest, "write", "w", "", "dest to output")
 	convertCmd.Flags().BoolVarP(&indent, "indent", "i", false, "output prettified json")
 	convertCmd.Flags().BoolVarP(&outStr, "string", "s", false, "output string format json")
+	convertCmd.Flags().BoolVarP(&quote, "quote", "q", false, "output string format json with quote,only effect with 'string' flag")
 }
 
 var convertCmd = &cobra.Command{
@@ -41,10 +45,12 @@ var convertCmd = &cobra.Command{
 		"if file name doesn't have these extension name,Convert will try convert json to yaml first,if error occurred,then try convert yaml to json\n" +
 		"the result output to stdout default,otherwise output to the dest if execute with -w.\n" +
 		"prettified json output with -i or --indent,and now only accept json data and won't convert data to yaml.\n" +
-		"output string format json data with -s or --string.\n" +
-		"flag 'i'(indent) and 's'(string) only accept json data.\n",
+		"output string format json data with -s or --string,when output string format json data with -q or --quote,return a double-quoted string\n" +
+		"flag 'i'(indent) and 's'(string) only accept json data.\n" +
+		"flag 'q'(quote) only effect on 's'(string) flag",
 	Example: "openk convert -f test.json\nopenk convert -f test.yml -w test.json\n" +
-		"openk convert -i -f json.txt\nopenk convert -i -f json.txt -w t.json\n",
+		"openk convert -i -f json.txt\nopenk convert -i -f json.txt -w t.json\n" +
+		"openk convert -s -f t.json\nopenk convert -sq -f t.json\n openk convet -sq -f t.json -w t.txt",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return convert()
 	},
@@ -72,6 +78,10 @@ func convert() error {
 		buf := bytes.NewBuffer(make([]byte, 0))
 		if err = json.Compact(buf, data); err != nil {
 			return err
+		}
+		if quote {
+			str := strconv.Quote(buf.String())
+			return output([]byte(str))
 		}
 		return output(buf.Bytes())
 	}
